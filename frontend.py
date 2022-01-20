@@ -18,6 +18,8 @@ with contextlib.redirect_stdout(None):
     import pygame
 import random
 import os
+import shared
+
 
 pygame.font.init()
 NAME_FONT = pygame.font.SysFont("comicsans", 20)
@@ -42,6 +44,7 @@ playerid = None
 lastServerTimestamp = 0
 gametime = 0
 players = {
+
     # playerid:{
     #   X
     #   Y
@@ -97,11 +100,11 @@ def messagegetterTCP():
 
     global players, foods, serverIP, playerid
     with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
+        s.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
         s.bind(("", DISCO_PORT))
         s.listen()
         while True:
             # Start listenning
-            s.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
             conn, addr = s.accept()
             sender = addr[0]  # ip
             with conn:
@@ -126,10 +129,10 @@ def messagegetterUDP():
 
     # listener, get messages and print, also DISCOVER_RESPONSE
     with socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as s:
+        s.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
         s.bind(("", MOVE_PORT))
         s.setblocking(0)
         while True:
-            s.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
             result = select.select([s], [], [])
             msg, address = result[0][0].recvfrom(RECVSIZE)
             # print("addd", address[0])
@@ -149,12 +152,13 @@ def messagegetterUDP():
                 # for p in message["players"]:
                 #     players[p]=message["players"][p]
 
-                backupMe = players.get(
-                    playerid) or message["players"].get(playerid)
+                localMe = players.get(
+                    playerid)
                 players = message["players"]
-                if backupMe != None and ((message["players"][playerid].get("score")) >= (backupMe.get("score") or 0)):
-                    players[playerid]["X"] = backupMe["X"]
-                    players[playerid]["Y"] = backupMe["Y"]
+                if localMe != None and message["players"][playerid].get("number_of_deaths") == localMe.get("number_of_deaths"):
+                    if ((message["players"][playerid].get("score")) >= (localMe.get("score"))):
+                        players[playerid]["X"] = localMe["X"]
+                        players[playerid]["Y"] = localMe["Y"]
 
                 foods = message["foods"]
 
@@ -189,7 +193,7 @@ def redraw_window():
     for player in sorted(players, key=lambda x: players[x]["score"]):
         p = players[player]
         pygame.draw.circle(WIN, p["color"], (p["X"], p["Y"]),
-                           round(math.sqrt(p["score"])))
+                           math.sqrt(p["score"]))
         # render and draw name for each player
         text = NAME_FONT.render(p["name"], 1, (0, 0, 0))
         WIN.blit(text, (p["X"] - text.get_width() /
@@ -200,13 +204,13 @@ def redraw_window():
         reversed(sorted(players, key=lambda x: players[x]["score"])))
     title = TIME_FONT.render("Scoreboard", 1, (0, 0, 0))
     start_y = 25
-    x = MAP_WIDTH - title.get_width() - 10
+    x = shared.MAP_WIDTH - title.get_width() - 10
     WIN.blit(title, (x, 5))
 
     ran = min(len(players), 3)
     for count, i in enumerate(sort_players[:ran]):
         text = SCORE_FONT.render(
-            str(count+1) + ". " + str(players[i]["name"]) + " "+str(players[i]["score"]), 1, (0, 0, 0))
+            str(count+1) + ". " + str(players[i]["name"]) + " "+str(players[i]["score"]-shared.INITIAL_SCORE), 1, (0, 0, 0))
         WIN.blit(text, (x, start_y + count * 20))
 
     # draw time
@@ -214,8 +218,12 @@ def redraw_window():
     WIN.blit(text, (10, 10))
     # draw score
     text = TIME_FONT.render(
-        "Score: " + str(round(players[playerid]["score"])), 1, (0, 0, 0))
+        "Score: " + str(round(players[playerid]["score"]-shared.INITIAL_SCORE)), 1, (0, 0, 0))
     WIN.blit(text, (10, 15 + text.get_height()))
+
+
+def getSizeFromScore(score):
+    return math.sqrt(score)
 
 
 def main():
@@ -236,7 +244,7 @@ def main():
             pygame.display.update()
             continue
 
-        vel = 6 - round(math.sqrt(player["score"])/14)
+        vel = 6 - round(math.sqrt(player["score"])/10)
         if vel <= 1:
             vel = 1
 
@@ -247,20 +255,20 @@ def main():
         # newY = player["Y"]
         # movement based on key presses
         if keys[pygame.K_LEFT] or keys[pygame.K_a]:
-            if player["X"] - vel - 10 - player["score"] >= 0:
-                player["X"] = player["X"] - vel
+            player["X"] = max(player["X"] - vel, 0 +
+                              getSizeFromScore(player["score"]))
 
         if keys[pygame.K_RIGHT] or keys[pygame.K_d]:
-            if player["X"] + vel + 10 + player["score"] <= MAP_WIDTH:
-                player["X"] = player["X"] + vel
+            player["X"] = min(player["X"] + vel, shared.MAP_WIDTH -
+                              getSizeFromScore(player["score"]))
 
         if keys[pygame.K_UP] or keys[pygame.K_w]:
-            if player["Y"] - vel - 10 - player["score"] >= 0:
-                player["Y"] = player["Y"] - vel
+            player["Y"] = max(player["Y"] - vel, 0 +
+                              getSizeFromScore(player["score"]))
 
         if keys[pygame.K_DOWN] or keys[pygame.K_s]:
-            if player["Y"] + vel + 10 + player["score"] <= MAP_HEIGHT:
-                player["Y"] = player["Y"] + vel
+            player["Y"] = min(player["Y"] + vel, shared.MAP_HEIGHT -
+                              getSizeFromScore(player["score"]))
 
         moveMessage(player["X"], player["Y"])
 
@@ -302,10 +310,8 @@ thread5 = Thread(target=messagegetterUDP, args=(), daemon=True)
 thread5.start()
 
 # setup pygame window
-MAP_WIDTH = 800  # x
-MAP_HEIGHT = 500  # y
 
-WIN = pygame.display.set_mode((MAP_WIDTH, MAP_HEIGHT))
+WIN = pygame.display.set_mode((shared.MAP_WIDTH, shared.MAP_HEIGHT))
 pygame.display.set_caption("Blobs")
 
 main()
