@@ -1,23 +1,17 @@
 from threading import Thread
 import time
-import os
 from threading import Thread
 import time
 import sys
 import json
 import socket
-from enum import IntEnum
 import select
-import subprocess
 import math
-import random
 from xmlrpc.client import MAXINT
 import pygame
 import contextlib
 with contextlib.redirect_stdout(None):
     import pygame
-import random
-import os
 import shared
 
 
@@ -27,15 +21,6 @@ TIME_FONT = pygame.font.SysFont("comicsans", 30)
 SCORE_FONT = pygame.font.SysFont("comicsans", 26)
 
 pygame.init()
-
-
-class messageTypes(IntEnum):
-    DISCOVER = 1
-    DISCOVER_RESPONSE = 2
-    JOIN_GAME = 3
-    NEW_GAME_RESPONSE = 4
-    MOVE = 5
-    CURRENT_STATE = 6
 
 
 serverIP = None
@@ -63,11 +48,7 @@ foods = [
     # }
 ]
 
-DISCO_PORT = 12345
-MOVE_PORT = 12346
-RECVSIZE = 204800
-
-myName = "anon"
+myName = "anonim"
 
 if len(sys.argv) > 1:
     myName = sys.argv[1]
@@ -82,7 +63,7 @@ def disco():
         if serverIP != None:
             break
         DISCOVER_MESSAGE_BYTES = json.dumps(
-            {"type": messageTypes.DISCOVER, "game": "agarip", "name": myName})
+            {"type": shared.messageTypes.DISCOVER, "game": "agario-clone", "name": myName})
         DISCOVER_MESSAGE_BYTES = str.encode(DISCOVER_MESSAGE_BYTES)
 
         with socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as sock:
@@ -90,32 +71,31 @@ def disco():
             sock.setsockopt(socket.SOL_SOCKET, socket.SO_BROADCAST, 1)
             for i in range(10):
                 sock.sendto(DISCOVER_MESSAGE_BYTES,
-                            ('<broadcast>', DISCO_PORT))
-                # print("disco ")
+                            ('<broadcast>', shared.DISCO_PORT))
         time.sleep(5)
 
 
 def messagegetterTCP():
-    # listener, get messages and print, also DISCOVER_RESPONSE
+    #
 
     global players, foods, serverIP, playerid
     with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
         s.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
-        s.bind(("", DISCO_PORT))
+        s.bind(("", shared.DISCO_PORT))
         s.listen()
         while True:
             # Start listenning
             conn, addr = s.accept()
             sender = addr[0]  # ip
             with conn:
-                output = conn.recv(RECVSIZE)
+                output = conn.recv(shared.RECVSIZE)
                 output = output.decode('utf-8')
-                # print(output, sender)
+                print(output, sender)
                 # Parse the message
                 message = json.loads(output)
                 mes_type = message["type"]
                 # Received message is type of "Discover Response"
-                if mes_type == messageTypes.DISCOVER_RESPONSE:
+                if mes_type == shared.messageTypes.DISCOVER_RESPONSE:
                     # if message["IP"] == myIP:
                     #     continue
                     # print(message)
@@ -130,27 +110,21 @@ def messagegetterUDP():
     # listener, get messages and print, also DISCOVER_RESPONSE
     with socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as s:
         s.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
-        s.bind(("", MOVE_PORT))
+        s.bind(("", shared.MOVE_PORT))
         s.setblocking(0)
         while True:
             result = select.select([s], [], [])
-            msg, address = result[0][0].recvfrom(RECVSIZE)
+            msg, address = result[0][0].recvfrom(shared.RECVSIZE)
             # print("addd", address[0])
             sender = address[0]
-            # print("SENDER:: ", sender)
+            # print("sender: ", sender)
             # print(msg)
             message = json.loads(msg.decode('utf-8'))
             mesType = message["type"]
-            if mesType == messageTypes.CURRENT_STATE:
-                # return discovery response
-                # print("CURRENT_STATE")
+            if mesType == shared.messageTypes.CURRENT_STATE:
 
                 if lastServerTimestamp > message["timestamp"]:
                     continue
-
-                # print(message)
-                # for p in message["players"]:
-                #     players[p]=message["players"][p]
 
                 localMe = players.get(
                     playerid)
@@ -164,26 +138,15 @@ def messagegetterUDP():
 
                 lastServerTimestamp = message["timestamp"]
                 gametime = message["gametime"]
-                # if str(sender) == myIP:
-                #     continue
-                # players[newPlayerID] = newPlayer
-
-                # sssss = (json.dumps(
-                #     {"type": messageTypes.DISCOVER_RESPONSE,
-                #      "playerid": newPlayerID,
-                #      "players": players,
-                #      "foods": foods
-                #      }))
-                # print(sssss)
 
 
 def redraw_window():
     """
-    draws each frame
+    draws new frame
     """
-    WIN.fill((255, 255, 255))  # fill screen white, to clear old frames
+    WIN.fill((255, 255, 255))  # clear previous frame
 
-    # draw all the orbs/balls
+    # draw all the foods
     for food in foods:
         print(food)
         pygame.draw.circle(WIN, food["color"],
@@ -213,9 +176,10 @@ def redraw_window():
             str(count+1) + ". " + str(players[i]["name"]) + " "+str(players[i]["score"]-shared.INITIAL_SCORE), 1, (0, 0, 0))
         WIN.blit(text, (x, start_y + count * 20))
 
-    # draw time
+    # draw gametime
     text = TIME_FONT.render("Time: "+str(gametime//(10**6)), 1, (0, 0, 0))
     WIN.blit(text, (10, 10))
+
     # draw score
     text = TIME_FONT.render(
         "Score: " + str(round(players[playerid]["score"]-shared.INITIAL_SCORE)), 1, (0, 0, 0))
@@ -228,7 +192,6 @@ def getSizeFromScore(score):
 
 def main():
     global players, foods, serverIP, playerid
-    # setup the clock, limit to 30fps
     while serverIP == None:
         time.sleep(0.01)
         continue
@@ -251,8 +214,7 @@ def main():
         # print(foods, players)
         # get key presses
         keys = pygame.key.get_pressed()
-        # newX = player["X"]
-        # newY = player["Y"]
+
         # movement based on key presses
         if keys[pygame.K_LEFT] or keys[pygame.K_a]:
             player["X"] = max(player["X"] - vel, 0 +
@@ -291,7 +253,7 @@ def moveMessage(x, y):
     global players, foods, serverIP, playerid
 
     MOVE_MESSAGE_BYTES = json.dumps(
-        {"type": messageTypes.MOVE, "playerid": playerid, "X": x, "Y": y, "timestamp": time.time_ns()})
+        {"type": shared.messageTypes.MOVE, "playerid": playerid, "X": x, "Y": y, "timestamp": time.time_ns()})
     # print(MOVE_MESSAGE_BYTES)
     MOVE_MESSAGE_BYTES = str.encode(MOVE_MESSAGE_BYTES)
 
@@ -299,19 +261,18 @@ def moveMessage(x, y):
         sock.bind(("", 0))
         for i in range(2):
             sock.sendto(MOVE_MESSAGE_BYTES,
-                        (serverIP, DISCO_PORT))
+                        (serverIP, shared.DISCO_PORT))
 
 
-thread3 = Thread(target=disco, args=(), daemon=True)
-thread3.start()
-thread4 = Thread(target=messagegetterTCP, args=(), daemon=True)
-thread4.start()
-thread5 = Thread(target=messagegetterUDP, args=(), daemon=True)
-thread5.start()
+thread_discovery = Thread(target=disco, args=(), daemon=True)
+thread_discovery.start()
+thread_TCP_listener = Thread(target=messagegetterTCP, args=(), daemon=True)
+thread_TCP_listener.start()
+thread_UDP_listener = Thread(target=messagegetterUDP, args=(), daemon=True)
+thread_UDP_listener.start()
 
 # setup pygame window
-
 WIN = pygame.display.set_mode((shared.MAP_WIDTH, shared.MAP_HEIGHT))
-pygame.display.set_caption("Blobs")
+pygame.display.set_caption("agar.io clone")
 
 main()

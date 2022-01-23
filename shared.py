@@ -1,3 +1,19 @@
+from enum import IntEnum
+
+DISCO_PORT = 12345
+MOVE_PORT = 12346
+RECVSIZE = 204800
+
+
+class messageTypes(IntEnum):
+    DISCOVER = 1
+    DISCOVER_RESPONSE = 2
+    JOIN_GAME = 3
+    NEW_GAME_RESPONSE = 4
+    MOVE = 5
+    CURRENT_STATE = 6
+
+
 INITIAL_SCORE = 64
 MAP_WIDTH = 1200  # x
 MAP_HEIGHT = 800  # y
