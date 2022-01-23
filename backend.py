@@ -84,7 +84,7 @@ def UDPsendStatus():
                 except Exception as e:
                     # print("error",e)
                     pass
-            time.sleep(0.001)
+            time.sleep(0.01)
 
 
 def checkCollision(playerid):
@@ -128,8 +128,8 @@ def checkCollision(playerid):
                 players[playerid]["Y"] = random.randint(
                     30, shared.MAP_HEIGHT-30)
                 players[playerid]["score"] = shared.INITIAL_SCORE
-                # players[playerid]["timestamp"] += 10**8
-                # players[playerid]["number_of_deaths"] += 1
+                players[playerid]["timestamp"] += 10**8
+                players[playerid]["number_of_deaths"] += 1
 
 
 def removeOfflineUsers():
