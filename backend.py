@@ -29,7 +29,7 @@ print("Welcome to agar.io clone server")
 
 
 players = {
-    'testuser1': {'X': 643, 'Y': 276, 'score': 100, 'color': (72, 131, 158), 'name': 'testuser', 'IP': '192.168.1.153', 'timestamp': 1942681807848047000}
+    # 'testuser1': {'X': 643, 'Y': 276, 'score': 100, 'color': (72, 131, 158), 'name': 'testuser', 'IP': '192.168.1.153', 'timestamp': 1942681807848047000}
 
     # playerid:{
     #   X
@@ -64,7 +64,6 @@ def UDPsendStatus():
     with socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as sock:
         sock.bind(("", 0))
         while True:
-            removeOfflineUsers()
             for playerID in players:
                 player = players[playerID]
                 if player["name"] == "testuser":
@@ -89,7 +88,9 @@ def UDPsendStatus():
 
 def checkCollision(playerid):
     global foods, players
-    player = players[playerid]
+    player = players.get(playerid)
+    if player == None:
+        return
 
     # check collison for foods and users
     for i, food in enumerate(foods[:]):

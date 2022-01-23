@@ -16,9 +16,9 @@ import shared
 
 
 pygame.font.init()
-NAME_FONT = pygame.font.SysFont("comicsans", 20)
-TIME_FONT = pygame.font.SysFont("comicsans", 30)
-SCORE_FONT = pygame.font.SysFont("comicsans", 26)
+NAME_FONT = pygame.font.SysFont("consolas", 20)
+TIME_FONT = pygame.font.SysFont("consolas", 30)
+SCORE_FONT = pygame.font.SysFont("consolas", 26)
 
 pygame.init()
 
